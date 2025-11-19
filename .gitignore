@@ -3,3 +3,13 @@ node_modules
 package-lock.json
 yarn.lock
 
+build*
+deploy.sh
+Dockerfile
+.gitignore
+npm-debug.log*
+.env.local
+deploy*
+create-secrets.sh
+build-image.sh
+manage-service.sh

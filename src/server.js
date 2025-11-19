@@ -5,8 +5,10 @@ import cors from "cors";
 import http from "http";
 import rateLimit from "express-rate-limit";
 
-// Midleeware de errores
+// Midleware de errores
 import { errorHandler } from "./middleware/errorHandler.js";
+// Midleware de JWT
+import { validateJWT } from "./middleware/validateJWT.js";
 
 import indexRouter from "./routes/index.routes.js";
 
@@ -71,7 +73,12 @@ app.use(
   })
 );
 
-app.use("/api", indexRouter);
+// Health check endpoint (sin autenticación)
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
+app.use("/api", validateJWT, indexRouter);
 
 // Manejo de errores 404
 app.use((req, res, next) => {
@@ -96,6 +103,6 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 8083;
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
