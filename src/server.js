@@ -36,7 +36,6 @@ const allowedOrigins = [
 
   process.env.API_BACK_URL,
   process.env.PAYMENT_MICROSERVICE_URL,
-  process.env.NOTIFICATIO_MICROSERVICE_URL,
 
   // Desarrollo local
   "http://localhost:3000",
@@ -79,14 +78,6 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api", validateJWT, indexRouter);
-
-// Manejo de errores 404
-app.use((req, res, next) => {
-  res.status(404).json({
-    error: "Ruta no encontrada",
-    path: req.originalUrl,
-  });
-});
 
 // Manejador de rutas no encontradas
 app.use((req, res) => {
