@@ -5,9 +5,20 @@ import cors from "cors";
 import http from "http";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// Midleware de errores
-import { errorHandler } from "./middleware/errorHandler.js";
+// Logger y utilidades
+import logger from "./utils/logger.js";
+import circuitBreakerManager from "./utils/circuitBreaker.js";
+
+// Middleware de errores
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
+import { sanitizeStrings } from "./middleware/requestValidator.js";
+
+// Cron Job
+import cron from "node-cron";
+import { exec } from "child_process";
 
 import indexRouter from "./routes/index.routes.js";
 import userSubscriptionRouter from "./routes/user-subscription/userSubscription.routes.js";
@@ -29,6 +40,26 @@ app.use(express.json());
 app.use(helmet());
 app.use(cookieParser());
 
+// Obtiene ruta absoluta para el script de evaluación de suscripciones
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const scriptPath = path.resolve(
+  __dirname,
+  "cron-jobs/evaluateSubscriptions.js"
+);
+
+// Cron Job - ejecucion
+cron.schedule("0 * * * *", () => {
+  //  console.log("Ejecutando evaluación de suscripciones...");
+  exec(`node ${scriptPath}`, (err, stdout, stderr) => {
+    if (err) {
+      console.error(`Error: ${stderr}`);
+    } else {
+      console.log(stdout);
+    }
+  });
+});
+
 // Lista de orígenes permitidos
 const allowedOrigins = [
   // Frontends
@@ -38,6 +69,7 @@ const allowedOrigins = [
 
   process.env.API_BACK_URL,
   process.env.PAYMENT_MICROSERVICE_URL,
+  process.env.GATEWAY_URL,
 
   // Desarrollo local
   "http://localhost:3000",
@@ -74,9 +106,23 @@ app.use(
   })
 );
 
-// Health check endpoint (sin autenticación)
+// Middleware de sanitización global
+app.use(sanitizeStrings);
+
+// Health check endpoint mejorado (sin autenticación)
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
+  const circuitBreakers = circuitBreakerManager.getAllStates();
+  const allHealthy = Object.values(circuitBreakers).every(
+    (cb) => cb.state === "CLOSED"
+  );
+
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    circuitBreakers,
+    healthy: allHealthy,
+  });
 });
 
 app.use("/api", indexRouter);
@@ -84,12 +130,7 @@ app.use("/user-subscription", userSubscriptionRouter);
 app.use("/subscription-plans", subscriptionPlansRouter);
 
 // Manejador de rutas no encontradas
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Ruta no encontrada",
-  });
-});
+app.use(notFoundHandler);
 
 // Middleware de manejo de errores global
 app.use(errorHandler);
@@ -99,5 +140,50 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 8083;
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info(`Subscription microservice started`, {
+    port: PORT,
+    environment: process.env.NODE_ENV || "development",
+  });
 });
+
+// Manejo de errores no capturados
+process.on("uncaughtException", (error) => {
+  logger.error("Uncaught Exception - shutting down gracefully", error);
+  gracefulShutdown("uncaughtException");
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("Unhandled Rejection - shutting down gracefully", reason, {
+    promise: promise.toString(),
+  });
+  gracefulShutdown("unhandledRejection");
+});
+
+// Manejo de señales de terminación
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM received - shutting down gracefully");
+  gracefulShutdown("SIGTERM");
+});
+
+process.on("SIGINT", () => {
+  logger.info("SIGINT received - shutting down gracefully");
+  gracefulShutdown("SIGINT");
+});
+
+/**
+ * Apagado graceful del servidor
+ */
+function gracefulShutdown(signal) {
+  logger.info(`Graceful shutdown initiated by ${signal}`);
+
+  server.close(() => {
+    logger.info("HTTP server closed");
+    process.exit(0);
+  });
+
+  // Forzar cierre después de 10 segundos
+  setTimeout(() => {
+    logger.error("Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000);
+}

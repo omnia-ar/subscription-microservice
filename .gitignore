@@ -1,8 +1,8 @@
-.env
+.env*
 node_modules
 package-lock.json
 yarn.lock
-
+*.md*
 build*
 deploy.sh
 Dockerfile
