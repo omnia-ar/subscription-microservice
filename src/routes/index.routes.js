@@ -2,6 +2,8 @@ import { Router } from "express";
 
 import subscriptionRouter from "./subscriptions/subscription.routes.js";
 
+import { validateJWT } from "../middleware/validateJWT.js";
+
 const router = Router();
 
 router.get("/health", (req, res) => {
@@ -12,6 +14,6 @@ router.get("/health", (req, res) => {
   });
 });
 
-router.use("/subscription", subscriptionRouter);
+router.use("/subscription", validateJWT, subscriptionRouter);
 
 export default router;

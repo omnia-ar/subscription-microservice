@@ -4,13 +4,14 @@ import helmet from "helmet";
 import cors from "cors";
 import http from "http";
 import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
 
 // Midleware de errores
 import { errorHandler } from "./middleware/errorHandler.js";
-// Midleware de JWT
-import { validateJWT } from "./middleware/validateJWT.js";
 
 import indexRouter from "./routes/index.routes.js";
+import userSubscriptionRouter from "./routes/user-subscription/userSubscription.routes.js";
+import subscriptionPlansRouter from "./routes/subscription-plans/subscriptionPlans.routes.js";
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ const limiter = rateLimit({
 app.use(limiter);
 app.use(express.json());
 app.use(helmet());
+app.use(cookieParser());
 
 // Lista de orígenes permitidos
 const allowedOrigins = [
@@ -77,7 +79,9 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.use("/api", validateJWT, indexRouter);
+app.use("/api", indexRouter);
+app.use("/user-subscription", userSubscriptionRouter);
+app.use("/subscription-plans", subscriptionPlansRouter);
 
 // Manejador de rutas no encontradas
 app.use((req, res) => {
