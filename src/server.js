@@ -66,6 +66,8 @@ const allowedOrigins = [
   process.env.FRONTEND_URL, // https://omnia-ar.com
   process.env.FRONTEND_URL_VERCEL, // https://omnia-ai-nine.vercel.app
   "https://www.omnia-ar.com", // Si usas www
+  "https://omnia-b724b1wi2-omnias-projects-8f268456.vercel.app",
+  "https://omnia-ar.com",
 
   process.env.API_BACK_URL,
   process.env.PAYMENT_MICROSERVICE_URL,

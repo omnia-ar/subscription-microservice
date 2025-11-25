@@ -137,16 +137,23 @@ export const sanitizeStrings = (req, res, next) => {
     return obj;
   };
 
+  // Sanitizar body (puede ser reasignado)
   if (req.body) {
     req.body = sanitize(req.body);
   }
 
-  if (req.query) {
-    req.query = sanitize(req.query);
+  // Sanitizar query (modificar propiedades en lugar de reasignar)
+  if (req.query && Object.keys(req.query).length > 0) {
+    const sanitizedQuery = sanitize(req.query);
+    Object.keys(req.query).forEach((key) => delete req.query[key]);
+    Object.assign(req.query, sanitizedQuery);
   }
 
-  if (req.params) {
-    req.params = sanitize(req.params);
+  // Sanitizar params (modificar propiedades en lugar de reasignar)
+  if (req.params && Object.keys(req.params).length > 0) {
+    const sanitizedParams = sanitize(req.params);
+    Object.keys(req.params).forEach((key) => delete req.params[key]);
+    Object.assign(req.params, sanitizedParams);
   }
 
   next();

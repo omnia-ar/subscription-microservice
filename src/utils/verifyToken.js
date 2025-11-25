@@ -10,7 +10,7 @@ export const verifyToken = async (token) => {
   try {
     if (!token) return { error: "Token requerido" };
 
-    const JWT_SECRET = process.env.JWT_SECRET;
+    const JWT_SECRET = process.env.JWT_SECRET || "secretKey";
     const decoded = jwt.verify(token, JWT_SECRET);
     return decoded;
   } catch (error) {
